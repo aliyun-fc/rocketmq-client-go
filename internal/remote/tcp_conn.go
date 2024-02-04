@@ -20,10 +20,15 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"net/url"
 	"sync"
 	"time"
 
 	"go.uber.org/atomic"
+
+	"golang.org/x/net/proxy"
+
+	"github.com/apache/rocketmq-client-go/v2/rlog"
 )
 
 // TODO: Adding TCP Connections Pool, https://github.com/apache/rocketmq-client-go/v2/issues/298
@@ -34,6 +39,40 @@ type tcpConnWrapper struct {
 }
 
 func initConn(ctx context.Context, addr string, config *RemotingClientConfig) (*tcpConnWrapper, error) {
+	if config.Socks5ProxyConfig.Address != "" {
+		proxyURL, err := url.Parse(config.Socks5ProxyConfig.Address)
+		if err != nil {
+			return nil, err
+		}
+		rlog.Info("init conn with socks5 connection", map[string]interface{}{
+			"username": config.Socks5ProxyConfig.UserName,
+			"host":     proxyURL.Host,
+			"addr":     addr,
+		})
+		d, err := proxy.SOCKS5("tcp", proxyURL.Host, &proxy.Auth{
+			User:     config.Socks5ProxyConfig.UserName,
+			Password: config.Socks5ProxyConfig.Password,
+		}, &net.Dialer{
+			KeepAlive: config.KeepAliveDuration,
+			Deadline:  time.Now().Add(config.ConnectionTimeout),
+		})
+		if err != nil {
+			return nil, err
+		}
+		conn, err := d.Dial("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		if config.UseTls {
+			conn = tls.Client(conn, &tls.Config{
+				InsecureSkipVerify: true,
+			})
+		}
+		return &tcpConnWrapper{
+			Conn: conn,
+		}, nil
+	}
+
 	var d net.Dialer
 	d.KeepAlive = config.KeepAliveDuration
 	d.Deadline = time.Now().Add(config.ConnectionTimeout)

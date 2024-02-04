@@ -193,3 +193,11 @@ func WithTls(useTls bool) Option {
 		opts.ClientOptions.RemotingClientConfig.UseTls = useTls
 	}
 }
+
+func WithSocksConfig(addr, userName, password string) Option {
+	return func(opts *producerOptions) {
+		opts.ClientOptions.RemotingClientConfig.Socks5ProxyConfig.Address = addr
+		opts.ClientOptions.RemotingClientConfig.Socks5ProxyConfig.UserName = userName
+		opts.ClientOptions.RemotingClientConfig.Socks5ProxyConfig.Password = password
+	}
+}

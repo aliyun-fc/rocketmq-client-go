@@ -41,6 +41,12 @@ type TcpOption struct {
 	UseTls            bool
 }
 
+type Socks5ProxyConfig struct {
+	Address  string
+	UserName string
+	Password string
+}
+
 //go:generate mockgen -source remote_client.go -destination mock_remote_client.go -self_package github.com/apache/rocketmq-client-go/v2/internal/remote  --package remote RemotingClient
 type RemotingClient interface {
 	RegisterRequestFunc(code int16, f ClientRequestFunc)
@@ -64,9 +70,12 @@ type remotingClient struct {
 
 type RemotingClientConfig struct {
 	TcpOption
+	Socks5ProxyConfig
 }
 
-var DefaultRemotingClientConfig = RemotingClientConfig{defaultTcpOption}
+var DefaultRemotingClientConfig = RemotingClientConfig{
+	TcpOption: defaultTcpOption,
+}
 
 var defaultTcpOption = TcpOption{
 	KeepAliveDuration: 0, // default 15s in golang
